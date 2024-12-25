@@ -1,13 +1,6 @@
-# Path: src/app.py
 """
 🎮 Main Application Module
 Orchestrates all components and provides the main application interface.
-
-Flow:
-1. Entry point for the application
-2. Initializes and connects all components
-3. Manages application lifecycle
-4. Handles shutdown and cleanup
 """
 
 import logging
@@ -16,14 +9,12 @@ import signal
 from .config.config_manager import ConfigManager
 from .managers.midi_manager import MIDIManager
 from .managers.mapping_manager import MappingManager
-from .handlers.button_handler import ButtonEventHandler
+from .handlers.button_handler import ButtonHandler  # Fixed class name
+from .handlers.alias_handler import AliasHandler
 
 logger = logging.getLogger(__name__)
 
 class LaunchpadApp:
-    """
-    🎯 Main application class
-    """
     def __init__(self):
         # Initialize components
         self.config_manager = ConfigManager()
@@ -32,15 +23,15 @@ class LaunchpadApp:
         # Set up logging based on config
         logging.getLogger().setLevel(self.config.log_level)
         
-        # Initialize managers
+        # Initialize handlers and managers
         self.midi_manager = MIDIManager()
-        self.mapping_manager = MappingManager()
-        self.button_handler = ButtonEventHandler(
-            mapping_manager=self.mapping_manager,
+        self.alias_handler = AliasHandler()
+        self.mapping_manager = MappingManager(alias_handler=self.alias_handler)
+        self.button_handler = ButtonHandler(
             debug_mode=self.config.launchpad.debug_mode
         )
         
-        # Setup signal handlers for clean shutdown
+        # Setup signal handlers
         signal.signal(signal.SIGINT, self._handle_shutdown)
         signal.signal(signal.SIGTERM, self._handle_shutdown)
         
@@ -53,33 +44,21 @@ class LaunchpadApp:
         )
     
     def add_mapping(self, x: int, y: int, color: int, alias: str):
-        """
-        ➕ Add new button mapping and set button color
-        
-        Args:
-            x (int): X coordinate
-            y (int): Y coordinate
-            color (int): MIDI color code
-            alias (str): Shell alias to execute
-        """
-        self.mapping_manager.add_mapping(x, y, color, alias)
+        """➕ Add new button mapping"""
+        mapping = self.mapping_manager.create_mapping(x, y, color, alias)
         self.midi_manager.set_button_color(x, y, color)
+        # Register callback
+        self.button_handler.register_callback(
+            mapping.button.note,
+            lambda: self.mapping_manager.execute_mapping(x, y)
+        )
         logger.info(f"✨ Added mapping: ({x}, {y}) -> {alias}")
     
     def start(self) -> bool:
-        """
-        🚀 Start the application
-        
-        Returns:
-            bool: True if startup successful
-        """
+        """�� Start the application"""
         try:
-            # Validate configuration
-            if not self.config_manager.validate_config():
-                return False
-                
             # Connect to Launchpad
-            if not self.midi_manager.connect_launchpad(self.config.launchpad.port_name):
+            if not self.midi_manager.connect(self.config.launchpad.port_name):
                 return False
             
             # Setup MIDI callback

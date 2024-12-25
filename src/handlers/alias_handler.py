@@ -1,46 +1,37 @@
-# Path: src/handlers/alias_handler.py
 """
 🔧 Alias Handler Module
 Handles the execution of shell aliases in a controlled environment.
-
-Flow:
-1. Imported by the main controller
-2. Provides methods for executing shell aliases safely
-3. Handles all shell-related operations and error management
 """
 
 import subprocess
 import logging
 from pathlib import Path
 from typing import Optional
+import os
 
 logger = logging.getLogger(__name__)
 
 class AliasHandler:
-    """
-    🛠️ Handles shell alias execution and management
-    """
-    def __init__(self):
-        # 🏠 Get user's home directory for shell config files
-        self.home = str(Path.home())
-        # 🐚 Default to zsh, but could be made configurable
-        self.shell_path = '/bin/zsh'
+    """Handles shell alias execution and management"""
     
+    def __init__(self, shell_path: str = '/bin/zsh'):
+        self.home = str(Path.home())
+        self.shell_path = shell_path
+        
     def execute(self, alias_name: str) -> bool:
         """
-        🚀 Execute a shell alias in a controlled environment
+        🚀 Execute a shell alias
         
         Args:
-            alias_name (str): Name of the alias to execute
+            alias_name: Name of the alias to execute
             
         Returns:
-            bool: True if execution successful, False otherwise
+            bool: True if execution successful
         """
         try:
-            # Use login shell to ensure aliases are loaded
             command = f"{self.shell_path} -i -c '{alias_name}'"
             
-            logger.debug(f"🔄 Executing alias: {alias_name}")
+            logger.debug(f"🔄 Executing: {alias_name}")
             
             process = subprocess.Popen(
                 command,
@@ -48,11 +39,10 @@ class AliasHandler:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 executable=self.shell_path,
-                env=subprocess.os.environ.copy(),
-                start_new_session=True  # Prevent keyboard interrupts from affecting parent
+                env=os.environ.copy(),
+                start_new_session=True
             )
             
-            # Capture output but don't wait indefinitely
             stdout, stderr = process.communicate(timeout=5)
             
             if stdout:
@@ -60,13 +50,17 @@ class AliasHandler:
             if stderr:
                 logger.warning(f"⚠️ Error: {stderr.decode().strip()}")
                 
-            return process.returncode == 0
-            
+            success = process.returncode == 0
+            if success:
+                logger.info(f"✅ Successfully executed: {alias_name}")
+            else:
+                logger.error(f"❌ Failed to execute: {alias_name}")
+                
+            return success
+                
         except subprocess.TimeoutExpired:
-            logger.error(f"⏰ Timeout while executing alias: {alias_name}")
+            logger.error(f"⏰ Timeout executing: {alias_name}")
             return False
         except Exception as e:
-            logger.error(f"💥 Failed to execute alias {alias_name}: {e}")
+            logger.error(f"💥 Error executing {alias_name}: {e}")
             return False
-        
-        https://claude.ai/chat/b00befb3-b262-4e5e-b1c1-15cc3a9d272c

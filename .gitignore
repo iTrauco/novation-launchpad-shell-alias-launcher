@@ -1,5 +1,3 @@
-# Path: .gitignore
-
 # 🔐 Secrets & Credentials
 .env
 *.env
