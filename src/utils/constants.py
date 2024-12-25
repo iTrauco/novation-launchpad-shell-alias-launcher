@@ -1,0 +1,1 @@
+# MIDI constants, colors, etc.
